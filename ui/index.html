@@ -1,0 +1,233 @@
+<!-- cat > ui/index.html <<'HTML' -->
+<!doctype html>
+<html data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <title>Microshop</title>
+  <style>
+    /* ---------- Theme ---------- */
+    :root {
+      --bg:#0b1220; --card:#111827; --text:#e5e7eb; --muted:#9ca3af; --border:#1f2937;
+      --btn:#0ea5e9; --btn-text:#081018; --btn2:#1f2937; --btn2-text:#e5e7eb;
+    }
+    [data-theme="light"] {
+      --bg:#ffffff; --card:#ffffff; --text:#111827; --muted:#6b7280; --border:#e5e7eb;
+      --btn:#111827; --btn-text:#ffffff; --btn2:#ffffff; --btn2-text:#111827;
+    }
+    /* ---------- Base ---------- */
+    *{box-sizing:border-box}
+    body{margin:24px auto;max-width:980px;background:var(--bg);color:var(--text);font-family:system-ui,Arial}
+    h1{margin:0 0 12px}
+    .muted{color:var(--muted)}
+    .wrap{display:grid;gap:16px}
+    .card{border:1px solid var(--border);border-radius:12px;padding:16px;background:var(--card)}
+    input{padding:8px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text);width:100%}
+    button{padding:8px 12px;border-radius:8px;border:1px solid var(--border);cursor:pointer}
+    button.primary{background:var(--btn);color:var(--btn-text);border:none}
+    button.secondary{background:var(--btn2);color:var(--btn2-text)}
+    button:disabled{opacity:.5;cursor:not-allowed}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:10px;border-bottom:1px solid var(--border);text-align:left}
+    .row{display:grid;gap:12px}
+    .grid-5{grid-template-columns:1.5fr 1fr 1fr auto auto}
+    .grid-4{grid-template-columns:2fr 1fr 1fr auto}
+    .flex{display:flex;gap:8px;align-items:center}
+    .right{display:flex;justify-content:flex-end}
+    .pill{display:inline-block;padding:2px 8px;border-radius:999px;background:#0ea5e933;color:#0ea5e9}
+    #msg{white-space:pre-wrap;background:transparent;border:1px dashed var(--border);border-radius:8px;padding:10px;max-height:220px;overflow:auto}
+    .toolbar{display:flex;gap:8px;align-items:center;justify-content:space-between}
+    .toggle{cursor:pointer;padding:6px 10px;border:1px solid var(--border);border-radius:999px}
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <div>
+      <h1 style="display:inline">Microshop</h1>
+      <div class="muted">Gateway at <code>/api/*</code> → Traefik → services</div>
+    </div>
+    <div>
+      <span id="themeLabel" class="toggle" onclick="toggleTheme()">🌙 Dark</span>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <!-- Auth -->
+    <div class="card">
+      <h3>Account</h3>
+      <div class="row grid-5">
+        <input id="email" placeholder="email" value="a@b.com">
+        <input id="password" type="password" placeholder="password" value="pass">
+        <button class="primary" onclick="register()">Register</button>
+        <button class="primary" onclick="login()">Login</button>
+        <button class="secondary" onclick="logout()">Logout</button>
+      </div>
+      <div class="flex" style="margin-top:8px"><div>Logged in:</div><div id="who" class="pill">n/a</div></div>
+    </div>
+
+    <!-- Products -->
+    <div class="card">
+      <div class="toolbar">
+        <h3>Products</h3>
+        <div class="flex">
+          <button id="seedBtn" class="secondary" onclick="seed()">Seed 2 sample items</button>
+          <button class="secondary" onclick="loadProducts()">Refresh</button>
+        </div>
+      </div>
+      <div class="row grid-4" style="margin-bottom:10px">
+        <input id="pname" placeholder="Name (e.g., Headphones)">
+        <input id="pprice" type="number" placeholder="Price" step="0.01">
+        <input id="pstock" type="number" placeholder="Stock" step="1">
+        <button class="primary" onclick="addProduct()">Add product</button>
+      </div>
+      <table id="ptable"><thead>
+        <tr><th style="width:80px">ID</th><th>Name</th><th style="width:120px">Price</th><th style="width:120px">Stock</th><th style="width:120px"></th></tr>
+      </thead><tbody></tbody></table>
+    </div>
+
+    <!-- Cart -->
+    <div class="card">
+      <div class="toolbar">
+        <h3>Cart</h3>
+        <div class="flex">
+          <button class="secondary" onclick="clearCart()">Clear cart</button>
+          <button class="primary" onclick="placeOrder()">Place order</button>
+        </div>
+      </div>
+      <table id="ctable"><thead>
+        <tr><th>Product ID</th><th style="width:160px">Qty</th><th style="width:120px"></th></tr>
+      </thead><tbody></tbody></table>
+    </div>
+
+    <!-- Messages -->
+    <div class="card">
+      <h3>Output</h3>
+      <div id="msg">(messages appear here)</div>
+    </div>
+  </div>
+
+<script>
+  /* -------- Theme -------- */
+  const themeKey='microshop_theme';
+  function applyTheme(t){ document.documentElement.setAttribute('data-theme', t); document.getElementById('themeLabel').textContent = t==='dark'?'🌙 Dark':'☀️ Light'; localStorage.setItem(themeKey,t); }
+  function toggleTheme(){ const cur = localStorage.getItem(themeKey)||'dark'; applyTheme(cur==='dark'?'light':'dark'); }
+  applyTheme(localStorage.getItem(themeKey)||'dark'); // default dark
+
+  /* -------- Helpers -------- */
+  const msg = (x)=>document.getElementById('msg').textContent = typeof x==='string'? x : JSON.stringify(x,null,2);
+  const tokenKey='microshop_token', emailKey='microshop_email';
+  const saveAuth=(t,e)=>{ localStorage.setItem(tokenKey,t||''); localStorage.setItem(emailKey,e||''); renderAuth(); }
+  const getToken=()=>localStorage.getItem(tokenKey)||'';
+  const who=()=>localStorage.getItem(emailKey)||'n/a';
+  function renderAuth(){ document.getElementById('who').textContent = getToken()? (who()||'n/a') : 'n/a'; }
+
+  async function fetchJSON(path, opts={}){
+    const r = await fetch('/api'+path, opts);
+    let data; try { data = await r.json(); } catch { data = await r.text(); }
+    if(!r.ok){ throw new Error(typeof data==='string'? data : (data.detail||JSON.stringify(data))); }
+    return data;
+  }
+
+  /* -------- Auth -------- */
+  async function register(){
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    try { msg(await fetchJSON('/auth/register',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email,password})})); }
+    catch(e){ msg('Register failed: '+e.message); }
+  }
+
+  async function login(){
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    try {
+      const res = await fetchJSON('/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email,password})});
+      if(!res.token) throw new Error('No token returned');
+      saveAuth(res.token, email); msg({login:'ok'});
+    } catch(e){ msg('Login failed: '+e.message); }
+  }
+
+  function logout(){ saveAuth('', ''); msg('Logged out'); }
+
+  /* -------- Products -------- */
+  async function loadProducts(){
+    try{
+      const list = await fetchJSON('/products');
+      const tb = document.querySelector('#ptable tbody'); tb.innerHTML='';
+      list.forEach(p=>{
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${p.id}</td><td>${p.name}</td><td>₹${p.price}</td><td>${p.stock}</td>
+          <td class="right"><button class="secondary" onclick="addToCart(${p.id})">Add to cart</button></td>`;
+        tb.appendChild(tr);
+      });
+      msg(list);
+      const hasKeyboard = list.some(p=>p.name.toLowerCase()==='keyboard');
+      const hasMouse = list.some(p=>p.name.toLowerCase()==='mouse');
+      document.getElementById('seedBtn').disabled = hasKeyboard && hasMouse;
+    }catch(e){ msg('Load products failed: '+e.message); }
+  }
+
+  async function addProduct(){
+    const name=document.getElementById('pname').value.trim();
+    const price=parseFloat(document.getElementById('pprice').value);
+    const stock=parseInt(document.getElementById('pstock').value,10);
+    if(!name || !Number.isFinite(price) || !Number.isFinite(stock)) return msg('Please enter name, price and stock.');
+    try{
+      const res = await fetchJSON('/products',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name,price,stock})});
+      msg(res); document.getElementById('pname').value=''; document.getElementById('pprice').value=''; document.getElementById('pstock').value='';
+      loadProducts();
+    }catch(e){ msg('Add product failed: '+e.message); }
+  }
+
+  async function seed(){
+    try{
+      const existing = await fetchJSON('/products');
+      const names = existing.map(p=>p.name.toLowerCase());
+      if(!names.includes('keyboard')){
+        await fetchJSON('/products',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:'Keyboard',price:999,stock:10})});
+      }
+      if(!names.includes('mouse')){
+        await fetchJSON('/products',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:'Mouse',price:499,stock:20})});
+      }
+      msg('Seeded'); loadProducts();
+    }catch(e){ msg('Seed failed: '+e.message); }
+  }
+
+  /* -------- Cart -------- */
+  let cart=[];
+  function addToCart(id){ const f=cart.find(c=>c.product_id===id); if(f) f.qty++; else cart.push({product_id:id, qty:1}); renderCart(); }
+  function inc(i){ cart[i].qty++; renderCart(); }
+  function dec(i){ cart[i].qty=Math.max(1, cart[i].qty-1); renderCart(); }
+  function rm(i){ cart.splice(i,1); renderCart(); }
+  function clearCart(){ cart=[]; renderCart(); msg('Cart cleared'); }
+  function renderCart(){
+    const tb = document.querySelector('#ctable tbody'); tb.innerHTML='';
+    cart.forEach((it,i)=>{
+      const tr=document.createElement('tr');
+      tr.innerHTML = `<td>${it.product_id}</td>
+        <td class="flex">
+          <button class="secondary" onclick="dec(${i})">-</button>
+          <span>${it.qty}</span>
+          <button class="secondary" onclick="inc(${i})">+</button>
+        </td>
+        <td class="right"><button class="secondary" onclick="rm(${i})">Remove</button></td>`;
+      tb.appendChild(tr);
+    });
+  }
+
+  /* -------- Order -------- */
+  async function placeOrder(){
+    const t=getToken(); if(!t) return msg('Please login first.');
+    if(cart.length===0) return msg('Cart is empty.');
+    try{
+      const res = await fetchJSON('/orders',{method:'POST',headers:{'content-type':'application/json','Authorization':'Bearer '+t},body:JSON.stringify({items:cart})});
+      msg(res); clearCart(); loadProducts();
+    }catch(e){ msg('Order failed: '+e.message); }
+  }
+
+  // init
+  renderAuth(); loadProducts();
+</script>
+</body>
+</html>
+HTML
+
+docker compose restart ui

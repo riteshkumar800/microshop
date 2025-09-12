@@ -1,0 +1,145 @@
+services:
+  traefik:
+    image: traefik:v2.11
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:8081
+      - --api.insecure=true
+    ports:
+      - "8081:8081"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+    ui:
+     image: nginx:alpine
+     ports:
+      - "8090:80"
+     volumes:
+      - ./ui/index.html:/usr/share/nginx/html/index.html:ro
+      - ./ui/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+     depends_on:
+      - traefik
+
+
+  # NEW: shared DB for product-service
+  product-db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_DB=productdb
+      - POSTGRES_USER=product
+      - POSTGRES_PASSWORD=product
+    expose: ["5432"]
+    volumes:
+      - product_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U product -d productdb"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  product-service:
+    build: ./product-service
+    expose: ["8000"]            # internal only; Traefik routes to it
+    environment:
+      - DATABASE_URL=postgresql://product:product@product-db:5432/productdb
+    depends_on:
+      product-db:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.product.rule=(PathPrefix(`/products`) || Path(`/healthz`) || Path(`/metrics`))"
+      - "traefik.http.routers.product.entrypoints=web"
+      - "traefik.http.services.product.loadbalancer.server.port=8000"
+    healthcheck:
+      test: ["CMD","python","-c","import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://localhost:8000/healthz').getcode()==200 else sys.exit(1)"]
+      interval: 5s
+      timeout: 2s
+      retries: 10
+
+  user-service:
+    build: ./user-service
+    environment:
+      - JWT_SECRET=devsecret
+    expose: ["8001"]
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.user.rule=(PathPrefix(`/auth`) || Path(`/healthz`) || Path(`/metrics`))"
+      - "traefik.http.routers.user.entrypoints=web"
+      - "traefik.http.services.user.loadbalancer.server.port=8001"
+    healthcheck:
+      test: ["CMD","python","-c","import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://localhost:8001/healthz').getcode()==200 else sys.exit(1)"]
+      interval: 5s
+      timeout: 2s
+      retries: 10
+
+  payment-service:
+    build: ./payment-service
+    expose: ["8003"]
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.payment.rule=(PathPrefix(`/pay`) || Path(`/healthz`) || Path(`/metrics`))"
+      - "traefik.http.routers.payment.entrypoints=web"
+      - "traefik.http.services.payment.loadbalancer.server.port=8003"
+    healthcheck:
+      test: ["CMD","python","-c","import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://localhost:8003/healthz').getcode()==200 else sys.exit(1)"]
+      interval: 5s
+      timeout: 2s
+      retries: 10
+
+  order-service:
+    build: ./order-service
+    depends_on:
+      product-service:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+      payment-service:
+        condition: service_healthy
+    expose: ["8002"]
+    environment:
+      - USER_URL=http://user-service:8001
+      - PRODUCT_URL=http://product-service:8000   # internal; switch to http://traefik:8081 if you want LB too
+      - PAYMENT_URL=http://payment-service:8003
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.order.rule=(PathPrefix(`/orders`) || Path(`/healthz`) || Path(`/metrics`))"
+      - "traefik.http.routers.order.entrypoints=web"
+      - "traefik.http.services.order.loadbalancer.server.port=8002"
+    healthcheck:
+      test: ["CMD","python","-c","import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://localhost:8002/healthz').getcode()==200 else sys.exit(1)"]
+      interval: 5s
+      timeout: 2s
+      retries: 10
+
+  # Observability (already added earlier)
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    command: ["--config.file=/etc/prometheus/prometheus.yml"]
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - product-service
+      - user-service
+      - payment-service
+      - order-service
+
+  grafana:
+    image: grafana/grafana:10.4.5
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./monitoring/grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+    depends_on:
+      - prometheus
+
+# 👈 Named volumes must be at the ROOT, not under services
+volumes:
+  product_pgdata:
+
+  
