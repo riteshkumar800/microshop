@@ -1,9 +1,10 @@
+# Onebox: single Render web service (Docker) that serves UI + proxies /api/*
 services:
   - type: web
     name: microshop-onebox
     env: docker
     plan: free
     autoDeploy: true
-    rootDir: onebox
-    dockerfilePath: ./onebox/Dockerfile
+    rootDir: .
+    dockerfilePath: ./Dockerfile
     healthCheckPath: /
