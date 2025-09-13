@@ -1,44 +1,48 @@
-# Single server that serves UI and proxies /api/* to local FastAPI apps
-user  www-data;
-worker_processes auto;
+server {
+  listen ${PORT};
+  server_name _;
 
-events { worker_connections 1024; }
+  # UI
+  root /app/ui;
+  index index.html;
 
-http {
-  include       mime.types;
-  default_type  application/octet-stream;
-  sendfile on;
-  tcp_nopush on;
-  tcp_nodelay on;
-  keepalive_timeout 65;
+  location / {
+    try_files $uri /index.html;
+  }
 
-  # local backends
-  upstream product  { server 127.0.0.1:8000; }
-  upstream userapi  { server 127.0.0.1:8001; }
-  upstream orderapi { server 127.0.0.1:8002; }
-  upstream payapi   { server 127.0.0.1:8003; }
-
-  server {
-    # replaced at runtime with $PORT by start.sh
-    listen __PORT__;
-    server_name _;
-
-    root /usr/share/nginx/html;
-    index index.html;
-
-    # proxy helpers
+  # Products -> product-service (8000)
+  location ^~ /api/products {
+    rewrite ^/api/products(.*)$ /products$1 break;
+    proxy_pass http://127.0.0.1:8000;
+    proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
+  }
 
-    location /api/products { proxy_pass http://product; }
-    location /api/auth     { proxy_pass http://userapi; }
-    location /api/orders   { proxy_pass http://orderapi; }
-    location /api/payments { proxy_pass http://payapi; }
+  # Auth -> user-service (8001)
+  location ^~ /api/auth {
+    rewrite ^/api/auth(.*)$ /auth$1 break;
+    proxy_pass http://127.0.0.1:8001;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+  }
 
-    location / {
-      try_files $uri /index.html;
-    }
+  # Orders -> order-service (8002)
+  location ^~ /api/orders {
+    rewrite ^/api/orders(.*)$ /orders$1 break;
+    proxy_pass http://127.0.0.1:8002;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+  }
+
+  # Payments -> payment-service (8003)
+  location ^~ /api/payments {
+    rewrite ^/api/payments(.*)$ /payments$1 break;
+    proxy_pass http://127.0.0.1:8003;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
   }
 }
