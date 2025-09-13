@@ -1,19 +1,17 @@
-# Render Blueprint: one-click deploy for Microshop
+# Render Blueprint: one-click deploy for Microshop (all-free, public backends)
 services:
-  # Public gateway: serves UI + proxies /api/*
   - type: web
     name: microshop-gateway
-    env: docker
+    runtime: docker
     plan: free
     autoDeploy: true
     rootDir: gateway
     dockerfilePath: ./gateway/Dockerfile
     healthCheckPath: /
 
-  # Private product service
-  - type: private_service
+  - type: web
     name: product-service
-    env: docker
+    runtime: docker
     plan: free
     autoDeploy: true
     rootDir: product-service
@@ -24,26 +22,19 @@ services:
         fromDatabase:
           name: microshop-product-db
           property: connectionString
-      - key: PRODUCT_SERVICE_URL
-        value: http://product-service:8000
 
-  # Private user service
-  - type: private_service
+  - type: web
     name: user-service
-    env: docker
+    runtime: docker
     plan: free
     autoDeploy: true
     rootDir: user-service
     dockerfilePath: ./user-service/Dockerfile
     healthCheckPath: /
-    envVars:
-      - key: USER_SERVICE_URL
-        value: http://user-service:8001
 
-  # Private order service
-  - type: private_service
+  - type: web
     name: order-service
-    env: docker
+    runtime: docker
     plan: free
     autoDeploy: true
     rootDir: order-service
@@ -53,10 +44,9 @@ services:
       - key: PRODUCT_SERVICE_URL
         value: http://product-service:8000
 
-  # Private payment service
-  - type: private_service
+  - type: web
     name: payment-service
-    env: docker
+    runtime: docker
     plan: free
     autoDeploy: true
     rootDir: payment-service
