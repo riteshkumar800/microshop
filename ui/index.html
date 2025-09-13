@@ -106,6 +106,23 @@
   </div>
 
 <script>
+
+// async function req(url, opts = {}) {
+//   const res = await fetch(url, opts);
+//   const text = await res.text();                  // read ONCE
+//   let data;
+//   try { data = JSON.parse(text); } catch { data = text; }
+
+//   if (!res.ok) {
+//     const msg = typeof data === 'string'
+//       ? data
+//       : (data.detail || data.message || JSON.stringify(data));
+//     throw new Error(msg || `HTTP ${res.status}`);
+//   }
+//   return data;
+// }
+
+
   /* -------- Theme -------- */
   const themeKey='microshop_theme';
   function applyTheme(t){ document.documentElement.setAttribute('data-theme', t); document.getElementById('themeLabel').textContent = t==='dark'?'🌙 Dark':'☀️ Light'; localStorage.setItem(themeKey,t); }
@@ -113,40 +130,64 @@
   applyTheme(localStorage.getItem(themeKey)||'dark'); // default dark
 
   /* -------- Helpers -------- */
-  const msg = (x)=>document.getElementById('msg').textContent = typeof x==='string'? x : JSON.stringify(x,null,2);
-  const tokenKey='microshop_token', emailKey='microshop_email';
-  const saveAuth=(t,e)=>{ localStorage.setItem(tokenKey,t||''); localStorage.setItem(emailKey,e||''); renderAuth(); }
-  const getToken=()=>localStorage.getItem(tokenKey)||'';
-  const who=()=>localStorage.getItem(emailKey)||'n/a';
-  function renderAuth(){ document.getElementById('who').textContent = getToken()? (who()||'n/a') : 'n/a'; }
+  async function req(url, opts = {}) {
+  const res = await fetch(url, opts);
+  const text = await res.text();                  // read ONCE
+  let data;
+  try { data = JSON.parse(text); } catch { data = text; }
 
-  async function fetchJSON(path, opts={}){
-    const r = await fetch('/api'+path, opts);
-    let data; try { data = await r.json(); } catch { data = await r.text(); }
-    if(!r.ok){ throw new Error(typeof data==='string'? data : (data.detail||JSON.stringify(data))); }
-    return data;
+  if (!res.ok) {
+    const msg = typeof data === 'string'
+      ? data
+      : (data.detail || data.message || JSON.stringify(data));
+    throw new Error(msg || `HTTP ${res.status}`);
   }
+  return data;
+}
+
 
   /* -------- Auth -------- */
-  async function register(){
-    const email = document.getElementById('email').value.trim();
-    const password = document.getElementById('password').value;
-    try { msg(await fetchJSON('/auth/register',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email,password})})); }
-    catch(e){ msg('Register failed: '+e.message); }
+  let token = localStorage.getItem('token') || '';
+
+function setOut(msg) {
+  const out = document.getElementById('out');
+  out.textContent = msg;
+}
+
+async function register() {
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  setOut('Registering…');
+  try {
+    await req('/api/auth/register', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    setOut('Registered! Now click “Login”.');
+  } catch (e) {
+    setOut('Register failed: ' + e.message);
   }
+}
 
-  async function login(){
-    const email = document.getElementById('email').value.trim();
-    const password = document.getElementById('password').value;
-    try {
-      const res = await fetchJSON('/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email,password})});
-      if(!res.token) throw new Error('No token returned');
-      saveAuth(res.token, email); msg({login:'ok'});
-    } catch(e){ msg('Login failed: '+e.message); }
+async function login() {
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  setOut('Logging in…');
+  try {
+    const data = await req('/api/auth/login', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    token = data.token;
+    localStorage.setItem('token', token);
+    document.getElementById('logged').textContent = email;
+    setOut('Logged in.');
+  } catch (e) {
+    setOut('Login failed: ' + e.message);
   }
-
-  function logout(){ saveAuth('', ''); msg('Logged out'); }
-
+}
   /* -------- Products -------- */
   async function loadProducts(){
     try{
@@ -165,17 +206,20 @@
     }catch(e){ msg('Load products failed: '+e.message); }
   }
 
-  async function addProduct(){
-    const name=document.getElementById('pname').value.trim();
-    const price=parseFloat(document.getElementById('pprice').value);
-    const stock=parseInt(document.getElementById('pstock').value,10);
-    if(!name || !Number.isFinite(price) || !Number.isFinite(stock)) return msg('Please enter name, price and stock.');
-    try{
-      const res = await fetchJSON('/products',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name,price,stock})});
-      msg(res); document.getElementById('pname').value=''; document.getElementById('pprice').value=''; document.getElementById('pstock').value='';
-      loadProducts();
-    }catch(e){ msg('Add product failed: '+e.message); }
-  }
+  async function addProduct() {
+  const name = document.getElementById('pname').value.trim();
+  const price = +document.getElementById('pprice').value;
+  const stock = +document.getElementById('pstock').value;
+  try {
+    await req('/api/products', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name, price, stock })
+    });
+    setOut('Product added.'); await listProducts();
+  } catch (e) { setOut('Add failed: ' + e.message); }
+}
+
 
   async function seed(){
     try{
