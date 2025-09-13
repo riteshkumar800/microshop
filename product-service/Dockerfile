@@ -1,9 +1,13 @@
 FROM python:3.11-slim
-ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=/app
 WORKDIR /app
-COPY requirements.txt .
-RUN pip install -q --no-cache-dir -r requirements.txt
-COPY src ./src
-EXPOSE 8000
-CMD ["uvicorn", "src.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
+# System deps (optional but nice to have)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+# IMPORTANT: bind to $PORT (Render provides it) – default to 10000 locally
+CMD ["sh", "-c", "uvicorn src.app.main:app --host 0.0.0.0 --port ${PORT:-10000}"]
