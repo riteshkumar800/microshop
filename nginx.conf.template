@@ -1,32 +1,44 @@
-server {
-  # Render sends traffic to $PORT (we envsubst this at startup)
-  listen ${PORT};
-  server_name _;
+# Single server that serves UI and proxies /api/* to local FastAPI apps
+user  www-data;
+worker_processes auto;
 
-  # ---- UI ----
-  location = / { root /usr/share/nginx/html; index index.html; }
-  location /  { try_files $uri /index.html; root /usr/share/nginx/html; }
+events { worker_connections 1024; }
 
-  # ---- APIs ----
-  # Products service (expects /products)
-  location  /api/products      { proxy_pass http://127.0.0.1:8000/products; }
-  location  /api/products/     { proxy_pass http://127.0.0.1:8000/products/; }
+http {
+  include       mime.types;
+  default_type  application/octet-stream;
+  sendfile on;
+  tcp_nopush on;
+  tcp_nodelay on;
+  keepalive_timeout 65;
 
-  # Auth service (expects /auth)
-  location  /api/auth          { proxy_pass http://127.0.0.1:8001/auth; }
-  location  /api/auth/         { proxy_pass http://127.0.0.1:8001/auth/; }
+  # local backends
+  upstream product  { server 127.0.0.1:8000; }
+  upstream userapi  { server 127.0.0.1:8001; }
+  upstream orderapi { server 127.0.0.1:8002; }
+  upstream payapi   { server 127.0.0.1:8003; }
 
-  # Orders service (expects /orders)
-  location  /api/orders        { proxy_pass http://127.0.0.1:8002/orders; }
-  location  /api/orders/       { proxy_pass http://127.0.0.1:8002/orders/; }
+  server {
+    # replaced at runtime with $PORT by start.sh
+    listen __PORT__;
+    server_name _;
 
-  # (Optional) payments
-  location  /api/payments      { proxy_pass http://127.0.0.1:8003/payments; }
-  location  /api/payments/     { proxy_pass http://127.0.0.1:8003/payments/; }
+    root /usr/share/nginx/html;
+    index index.html;
 
-  proxy_http_version 1.1;
-  proxy_set_header   Host              $host;
-  proxy_set_header   X-Real-IP         $remote_addr;
-  proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
-  proxy_set_header   X-Forwarded-Proto $scheme;
+    # proxy helpers
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+
+    location /api/products { proxy_pass http://product; }
+    location /api/auth     { proxy_pass http://userapi; }
+    location /api/orders   { proxy_pass http://orderapi; }
+    location /api/payments { proxy_pass http://payapi; }
+
+    location / {
+      try_files $uri /index.html;
+    }
+  }
 }
