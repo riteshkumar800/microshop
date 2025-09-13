@@ -10,24 +10,24 @@ services:
     dockerfilePath: ./gateway/Dockerfile
     healthCheckPath: /
     envVars:
-      # Inject the live URLs of your backends into the gateway at deploy time
-      - key: PRODUCT_BASE
+      # Use host instead of url; we'll prepend https:// inside nginx template
+      - key: PRODUCT_HOST
         fromService:
           name: product-service
           type: web
-          property: url
-      - key: USER_BASE
+          property: host
+      - key: USER_HOST
         fromService:
           name: user-service
           type: web
-          property: url
-      - key: ORDER_BASE
+          property: host
+      - key: ORDER_HOST
         fromService:
           name: order-service
           type: web
-          property: url
+          property: host
 
-  # Product service (uses SQLite on Render to avoid DB limits)
+  # Product service (SQLite so we don't need a Render DB)
   - type: web
     name: product-service
     env: docker
@@ -37,7 +37,6 @@ services:
     dockerfilePath: ./product-service/Dockerfile
     healthCheckPath: /
     envVars:
-      # Use SQLite (async). If your code is sync SQLAlchemy, use sqlite:///data.db
       - key: DATABASE_URL
         value: sqlite+aiosqlite:///data.db
 
@@ -51,7 +50,7 @@ services:
     dockerfilePath: ./user-service/Dockerfile
     healthCheckPath: /
 
-  # Order service (needs the Product URL)
+  # Order service (needs product address)
   - type: web
     name: order-service
     env: docker
@@ -61,11 +60,12 @@ services:
     dockerfilePath: ./order-service/Dockerfile
     healthCheckPath: /
     envVars:
-      - key: PRODUCT_SERVICE_URL
+      # give the host; code will turn it into https://<host>
+      - key: PRODUCT_SERVICE_HOST
         fromService:
           name: product-service
           type: web
-          property: url
+          property: host
 
   # Payment service (dummy)
   - type: web
