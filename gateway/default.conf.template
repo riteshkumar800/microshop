@@ -1,35 +1,30 @@
 server {
-  listen 80;
+  # Render expects your web service to listen on 10000
+  listen 10000;
   server_name _;
 
-  root /usr/share/nginx/html;
-  index index.html;
-  try_files $uri /index.html;
-
-  # common proxy headers
-  proxy_set_header X-Real-IP $remote_addr;
-  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-  proxy_set_header X-Forwarded-Proto $scheme;
-  proxy_ssl_server_name on;
-
-  # /api/products -> product-service
-  location ^~ /api/products {
-    rewrite ^/api/products(.*)$ /products$1 break;
-    proxy_set_header Host ${PRODUCT_HOST};
-    proxy_pass https://${PRODUCT_HOST};
+  # ---- Static UI ----
+  location / {
+    root /usr/share/nginx/html;
+    try_files $uri /index.html;
   }
 
-  # /api/auth/* -> user-service
-  location ^~ /api/auth {
-    rewrite ^/api/auth(.*)$ /auth$1 break;
-    proxy_set_header Host ${USER_HOST};
-    proxy_pass https://${USER_HOST};
-  }
+  # ---- API proxy ----
+  # These env vars are created by the blueprint:
+  # PRODUCT_HOST, USER_HOST, ORDER_HOST
+  # On Render, internal web services listen on port 10000.
+  location /api/ {
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_http_version 1.1;
+    proxy_set_header Connection "";
 
-  # /api/orders -> order-service
-  location ^~ /api/orders {
-    rewrite ^/api/orders(.*)$ /orders$1 break;
-    proxy_set_header Host ${ORDER_HOST};
-    proxy_pass https://${ORDER_HOST};
+    # Route by prefix
+    if ($request_uri ~* ^/api/products) { proxy_pass http://${PRODUCT_HOST}:10000$request_uri; break; }
+    if ($request_uri ~* ^/api/orders)   { proxy_pass http://${ORDER_HOST}:10000$request_uri;   break; }
+    if ($request_uri ~* ^/api/auth)     { proxy_pass http://${USER_HOST}:10000$request_uri;    break; }
+
+    # Default -> product service
+    proxy_pass http://${PRODUCT_HOST}:10000$request_uri;
   }
 }
