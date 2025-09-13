@@ -1,78 +1,9 @@
-# Render Blueprint: one-click deploy for Microshop (all FREE)
 services:
-  # Public gateway: serves UI and proxies /api/*
   - type: web
-    name: microshop-gateway
+    name: microshop-onebox
     env: docker
     plan: free
     autoDeploy: true
-    rootDir: gateway
-    dockerfilePath: ./gateway/Dockerfile
-    healthCheckPath: /
-    envVars:
-      # Use host instead of url; we'll prepend https:// inside nginx template
-      - key: PRODUCT_HOST
-        fromService:
-          name: product-service
-          type: web
-          property: host
-      - key: USER_HOST
-        fromService:
-          name: user-service
-          type: web
-          property: host
-      - key: ORDER_HOST
-        fromService:
-          name: order-service
-          type: web
-          property: host
-
-  # Product service (SQLite so we don't need a Render DB)
-  - type: web
-    name: product-service
-    env: docker
-    plan: free
-    autoDeploy: true
-    rootDir: product-service
-    dockerfilePath: ./product-service/Dockerfile
-    healthCheckPath: /
-    envVars:
-      - key: DATABASE_URL
-        value: sqlite+aiosqlite:///data.db
-
-  # User service
-  - type: web
-    name: user-service
-    env: docker
-    plan: free
-    autoDeploy: true
-    rootDir: user-service
-    dockerfilePath: ./user-service/Dockerfile
-    healthCheckPath: /
-
-  # Order service (needs product address)
-  - type: web
-    name: order-service
-    env: docker
-    plan: free
-    autoDeploy: true
-    rootDir: order-service
-    dockerfilePath: ./order-service/Dockerfile
-    healthCheckPath: /
-    envVars:
-      # give the host; code will turn it into https://<host>
-      - key: PRODUCT_SERVICE_HOST
-        fromService:
-          name: product-service
-          type: web
-          property: host
-
-  # Payment service (dummy)
-  - type: web
-    name: payment-service
-    env: docker
-    plan: free
-    autoDeploy: true
-    rootDir: payment-service
-    dockerfilePath: ./payment-service/Dockerfile
+    rootDir: onebox
+    dockerfilePath: ./onebox/Dockerfile
     healthCheckPath: /
