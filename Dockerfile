@@ -1,32 +1,38 @@
+# Multi-app (FastAPI) + Nginx + Supervisor in one container
 FROM python:3.11-slim
 
-# system deps
+# OS deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    nginx supervisor gettext-base && rm -rf /var/lib/apt/lists/*
+    nginx supervisor build-essential curl ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# copy source
-COPY product-service/ ./product-service/
-COPY user-service/    ./user-service/
-COPY order-service/   ./order-service/
-COPY payment-service/ ./payment-service/
-COPY ui/index.html    /usr/share/nginx/html/index.html
+# Copy source
+COPY product-service /app/product-service
+COPY user-service    /app/user-service
+COPY order-service   /app/order-service
+COPY payment-service /app/payment-service
+COPY ui/index.html   /usr/share/nginx/html/index.html
 
-# python deps (from each service)
+# Python deps (each service has its own requirements)
 RUN pip install --no-cache-dir \
-    -r product-service/requirements.txt \
-    -r user-service/requirements.txt \
-    -r order-service/requirements.txt \
-    -r payment-service/requirements.txt
+    -r /app/product-service/requirements.txt \
+    -r /app/user-service/requirements.txt \
+    -r /app/order-service/requirements.txt \
+    -r /app/payment-service/requirements.txt
 
-# nginx + supervisord + start script
-COPY onebox/nginx.conf.template /etc/nginx/templates/default.conf.template
-COPY onebox/supervisord.conf   /etc/supervisor/conf.d/supervisord.conf
-COPY onebox/start.sh           /start.sh
+# Nginx + Supervisor configs and startup script
+COPY nginx.conf.template      /etc/nginx/conf.d/default.conf
+COPY supervisord.conf         /etc/supervisor/supervisord.conf
+COPY start.sh                 /start.sh
 RUN chmod +x /start.sh
 
-# Render routes traffic to $PORT for Docker services; we template it at runtime
+# Make sure nginx logs go to stdout/stderr
+RUN ln -sf /dev/stdout /var/log/nginx/access.log && \
+    ln -sf /dev/stderr /var/log/nginx/error.log
+
+# Render provides $PORT; we’ll rewrite Nginx listen to it at runtime
 ENV PORT=10000
 EXPOSE 10000
 
