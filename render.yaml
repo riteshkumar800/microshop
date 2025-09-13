@@ -1,40 +1,60 @@
-# Render Blueprint: one-click deploy for Microshop (all-free, public backends)
+# Render Blueprint: one-click deploy for Microshop (all FREE)
 services:
+  # Public gateway: serves UI and proxies /api/*
   - type: web
     name: microshop-gateway
-    runtime: docker
+    env: docker
     plan: free
     autoDeploy: true
     rootDir: gateway
     dockerfilePath: ./gateway/Dockerfile
     healthCheckPath: /
+    envVars:
+      # Inject the live URLs of your backends into the gateway at deploy time
+      - key: PRODUCT_BASE
+        fromService:
+          name: product-service
+          type: web
+          property: url
+      - key: USER_BASE
+        fromService:
+          name: user-service
+          type: web
+          property: url
+      - key: ORDER_BASE
+        fromService:
+          name: order-service
+          type: web
+          property: url
 
+  # Product service (uses SQLite on Render to avoid DB limits)
   - type: web
     name: product-service
-    runtime: docker
+    env: docker
     plan: free
     autoDeploy: true
     rootDir: product-service
     dockerfilePath: ./product-service/Dockerfile
     healthCheckPath: /
     envVars:
+      # Use SQLite (async). If your code is sync SQLAlchemy, use sqlite:///data.db
       - key: DATABASE_URL
-        fromDatabase:
-          name: microshop-product-db
-          property: connectionString
+        value: sqlite+aiosqlite:///data.db
 
+  # User service
   - type: web
     name: user-service
-    runtime: docker
+    env: docker
     plan: free
     autoDeploy: true
     rootDir: user-service
     dockerfilePath: ./user-service/Dockerfile
     healthCheckPath: /
 
+  # Order service (needs the Product URL)
   - type: web
     name: order-service
-    runtime: docker
+    env: docker
     plan: free
     autoDeploy: true
     rootDir: order-service
@@ -42,17 +62,17 @@ services:
     healthCheckPath: /
     envVars:
       - key: PRODUCT_SERVICE_URL
-        value: http://product-service:8000
+        fromService:
+          name: product-service
+          type: web
+          property: url
 
+  # Payment service (dummy)
   - type: web
     name: payment-service
-    runtime: docker
+    env: docker
     plan: free
     autoDeploy: true
     rootDir: payment-service
     dockerfilePath: ./payment-service/Dockerfile
     healthCheckPath: /
-
-databases:
-  - name: microshop-product-db
-    plan: free
