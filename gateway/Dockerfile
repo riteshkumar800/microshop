@@ -1,5 +1,9 @@
-FROM nginx:1.25-alpine
+FROM nginx:alpine
 
-COPY ../ui/index.html /usr/share/nginx/html/index.html
+# UI files
+COPY public/ /usr/share/nginx/html/
 
-COPY default.conf.template /etc/nginx/templates/default.conf.template
+# Nginx template (envsubst will fill in PRODUCT_BASE/USER_BASE/ORDER_BASE)
+COPY nginx.conf.template /etc/nginx/templates/default.conf.template
+
+EXPOSE 80
