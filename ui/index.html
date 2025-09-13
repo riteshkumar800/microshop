@@ -1,277 +1,244 @@
-<!-- cat > ui/index.html <<'HTML' -->
 <!doctype html>
-<html data-theme="dark">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Microshop</title>
   <style>
-    /* ---------- Theme ---------- */
-    :root {
-      --bg:#0b1220; --card:#111827; --text:#e5e7eb; --muted:#9ca3af; --border:#1f2937;
-      --btn:#0ea5e9; --btn-text:#081018; --btn2:#1f2937; --btn2-text:#e5e7eb;
-    }
-    [data-theme="light"] {
-      --bg:#ffffff; --card:#ffffff; --text:#111827; --muted:#6b7280; --border:#e5e7eb;
-      --btn:#111827; --btn-text:#ffffff; --btn2:#ffffff; --btn2-text:#111827;
-    }
-    /* ---------- Base ---------- */
-    *{box-sizing:border-box}
-    body{margin:24px auto;max-width:980px;background:var(--bg);color:var(--text);font-family:system-ui,Arial}
-    h1{margin:0 0 12px}
-    .muted{color:var(--muted)}
-    .wrap{display:grid;gap:16px}
-    .card{border:1px solid var(--border);border-radius:12px;padding:16px;background:var(--card)}
-    input{padding:8px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text);width:100%}
-    button{padding:8px 12px;border-radius:8px;border:1px solid var(--border);cursor:pointer}
-    button.primary{background:var(--btn);color:var(--btn-text);border:none}
-    button.secondary{background:var(--btn2);color:var(--btn2-text)}
-    button:disabled{opacity:.5;cursor:not-allowed}
-    table{width:100%;border-collapse:collapse}
-    th,td{padding:10px;border-bottom:1px solid var(--border);text-align:left}
-    .row{display:grid;gap:12px}
-    .grid-5{grid-template-columns:1.5fr 1fr 1fr auto auto}
-    .grid-4{grid-template-columns:2fr 1fr 1fr auto}
-    .flex{display:flex;gap:8px;align-items:center}
-    .right{display:flex;justify-content:flex-end}
-    .pill{display:inline-block;padding:2px 8px;border-radius:999px;background:#0ea5e933;color:#0ea5e9}
-    #msg{white-space:pre-wrap;background:transparent;border:1px dashed var(--border);border-radius:8px;padding:10px;max-height:220px;overflow:auto}
-    .toolbar{display:flex;gap:8px;align-items:center;justify-content:space-between}
-    .toggle{cursor:pointer;padding:6px 10px;border:1px solid var(--border);border-radius:999px}
+    :root { color-scheme: dark; }
+    body { margin:0; font:16px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:#0f172a; color:#e5e7eb; }
+    .wrap { max-width: 980px; margin: 32px auto; padding: 0 16px; }
+    h1 { font-size: 32px; margin: 0 0 8px; }
+    .muted { color:#94a3b8; font-size:14px; }
+    .box { background:#111827; border:1px solid #1f2937; border-radius:12px; padding:16px; margin:16px 0; }
+    .row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+    input, button { height:36px; border-radius:8px; border:1px solid #374151; background:#0b1220; color:#e5e7eb; padding:0 10px; }
+    input::placeholder { color:#6b7280; }
+    button { background:#0ea5e9; border-color:#0284c7; color:white; cursor:pointer; }
+    button.ghost { background:transparent; border-color:#374151; color:#e5e7eb; }
+    button.warn { background:#f97316; border-color:#ea580c; }
+    table { width:100%; border-collapse: collapse; }
+    th, td { border-top:1px solid #1f2937; padding:10px; }
+    th { text-align:left; color:#94a3b8; font-weight:600; }
+    .right { text-align:right; }
+    .pill { display:inline-block; padding:3px 8px; border-radius:999px; background:#0b1220; border:1px solid #374151; font-size:12px; color:#93c5fd; }
+    #out { white-space:pre-wrap; background:#0b1220; border:1px dashed #374151; border-radius:10px; padding:12px; color:#e5e7eb; min-height:22px; }
+    .toggle { float:right; font-size:14px; }
   </style>
 </head>
 <body>
-  <div class="toolbar">
-    <div>
-      <h1 style="display:inline">Microshop</h1>
-      <div class="muted">Gateway at <code>/api/*</code> → Traefik → services</div>
+<div class="wrap">
+  <h1>Microshop <span class="toggle"><button class="ghost" id="themeBtn">🌙 Dark</button></span></h1>
+  <div class="muted">Gateway at <code>/api/*</code> → Traefik → services</div>
+
+  <!-- Account -->
+  <div class="box">
+    <h3>Account</h3>
+    <div class="row">
+      <input id="email" placeholder="email@example.com" style="width:320px" />
+      <input id="password" placeholder="password" type="password" style="width:240px" />
+      <button onclick="register()">Register</button>
+      <button onclick="login()">Login</button>
+      <button class="ghost" onclick="logout()">Logout</button>
     </div>
-    <div>
-      <span id="themeLabel" class="toggle" onclick="toggleTheme()">🌙 Dark</span>
+    <div style="margin-top:8px;">Logged in: <span id="logged" class="pill">n/a</span></div>
+  </div>
+
+  <!-- Products -->
+  <div class="box">
+    <h3>Products</h3>
+    <div class="row">
+      <input id="pname" placeholder="Name (e.g., Keyboard)" style="flex:2;" />
+      <input id="pprice" placeholder="Price (e.g., 999)" style="flex:1;" />
+      <input id="pstock" placeholder="Stock (e.g., 10)" style="flex:1;" />
+      <button onclick="addProduct()">Add product</button>
+      <button class="ghost" onclick="seed()">Seed 2 sample items</button>
+      <button class="ghost" onclick="listProducts()">Refresh</button>
+    </div>
+    <table style="margin-top:10px;">
+      <thead><tr><th style="width:60px">ID</th><th>Name</th><th class="right">Price</th><th class="right">Stock</th><th class="right">Action</th></tr></thead>
+      <tbody id="ptbody"></tbody>
+    </table>
+  </div>
+
+  <!-- Cart -->
+  <div class="box">
+    <h3>Cart</h3>
+    <table>
+      <thead><tr><th>Product ID</th><th class="right">Qty</th><th class="right">Remove</th></tr></thead>
+      <tbody id="cartbody"></tbody>
+    </table>
+    <div class="row" style="justify-content:flex-end; margin-top:10px;">
+      <button class="ghost" onclick="clearCart()">Clear cart</button>
+      <button class="warn" onclick="placeOrder()">Place order</button>
     </div>
   </div>
 
-  <div class="wrap">
-    <!-- Auth -->
-    <div class="card">
-      <h3>Account</h3>
-      <div class="row grid-5">
-        <input id="email" placeholder="email" value="a@b.com">
-        <input id="password" type="password" placeholder="password" value="pass">
-        <button class="primary" onclick="register()">Register</button>
-        <button class="primary" onclick="login()">Login</button>
-        <button class="secondary" onclick="logout()">Logout</button>
-      </div>
-      <div class="flex" style="margin-top:8px"><div>Logged in:</div><div id="who" class="pill">n/a</div></div>
-    </div>
-
-    <!-- Products -->
-    <div class="card">
-      <div class="toolbar">
-        <h3>Products</h3>
-        <div class="flex">
-          <button id="seedBtn" class="secondary" onclick="seed()">Seed 2 sample items</button>
-          <button class="secondary" onclick="loadProducts()">Refresh</button>
-        </div>
-      </div>
-      <div class="row grid-4" style="margin-bottom:10px">
-        <input id="pname" placeholder="Name (e.g., Headphones)">
-        <input id="pprice" type="number" placeholder="Price" step="0.01">
-        <input id="pstock" type="number" placeholder="Stock" step="1">
-        <button class="primary" onclick="addProduct()">Add product</button>
-      </div>
-      <table id="ptable"><thead>
-        <tr><th style="width:80px">ID</th><th>Name</th><th style="width:120px">Price</th><th style="width:120px">Stock</th><th style="width:120px"></th></tr>
-      </thead><tbody></tbody></table>
-    </div>
-
-    <!-- Cart -->
-    <div class="card">
-      <div class="toolbar">
-        <h3>Cart</h3>
-        <div class="flex">
-          <button class="secondary" onclick="clearCart()">Clear cart</button>
-          <button class="primary" onclick="placeOrder()">Place order</button>
-        </div>
-      </div>
-      <table id="ctable"><thead>
-        <tr><th>Product ID</th><th style="width:160px">Qty</th><th style="width:120px"></th></tr>
-      </thead><tbody></tbody></table>
-    </div>
-
-    <!-- Messages -->
-    <div class="card">
-      <h3>Output</h3>
-      <div id="msg">(messages appear here)</div>
-    </div>
+  <!-- Output -->
+  <div class="box">
+    <h3>Output</h3>
+    <div id="out">(messages appear here)</div>
   </div>
+</div>
 
 <script>
-
-// async function req(url, opts = {}) {
-//   const res = await fetch(url, opts);
-//   const text = await res.text();                  // read ONCE
-//   let data;
-//   try { data = JSON.parse(text); } catch { data = text; }
-
-//   if (!res.ok) {
-//     const msg = typeof data === 'string'
-//       ? data
-//       : (data.detail || data.message || JSON.stringify(data));
-//     throw new Error(msg || `HTTP ${res.status}`);
-//   }
-//   return data;
-// }
-
-
-  /* -------- Theme -------- */
-  const themeKey='microshop_theme';
-  function applyTheme(t){ document.documentElement.setAttribute('data-theme', t); document.getElementById('themeLabel').textContent = t==='dark'?'🌙 Dark':'☀️ Light'; localStorage.setItem(themeKey,t); }
-  function toggleTheme(){ const cur = localStorage.getItem(themeKey)||'dark'; applyTheme(cur==='dark'?'light':'dark'); }
-  applyTheme(localStorage.getItem(themeKey)||'dark'); // default dark
-
-  /* -------- Helpers -------- */
-  async function req(url, opts = {}) {
-  const res = await fetch(url, opts);
-  const text = await res.text();                  // read ONCE
-  let data;
-  try { data = JSON.parse(text); } catch { data = text; }
-
-  if (!res.ok) {
-    const msg = typeof data === 'string'
-      ? data
-      : (data.detail || data.message || JSON.stringify(data));
-    throw new Error(msg || `HTTP ${res.status}`);
+  // THEME
+  const themeBtn = document.getElementById('themeBtn');
+  function setTheme(mode) {
+    document.documentElement.style.colorScheme = mode === 'dark' ? 'dark' : 'light';
+    themeBtn.textContent = mode === 'dark' ? '🌙 Dark' : '☀️ Light';
+    localStorage.setItem('theme', mode);
   }
-  return data;
-}
+  themeBtn.onclick = () => setTheme(localStorage.getItem('theme') === 'dark' ? 'light':'dark');
+  setTheme(localStorage.getItem('theme') || 'dark');
 
+  // UTIL
+  const $ = sel => document.querySelector(sel);
+  function setOut(msg){ $('#out').textContent = typeof msg === 'string' ? msg : JSON.stringify(msg, null, 2); }
 
-  /* -------- Auth -------- */
+  // One-shot fetch helper: reads body ONCE, returns JSON or text. Throws on !ok with message.
+  async function req(path, opts = {}) {
+    const res = await fetch(path, opts);
+    const raw = await res.text();
+    let data; try { data = JSON.parse(raw); } catch { data = raw; }
+    if (!res.ok) {
+      const msg = (data && data.detail) || (data && data.message) || (typeof data === 'string' ? data : JSON.stringify(data));
+      throw new Error(msg || `HTTP ${res.status}`);
+    }
+    return data;
+  }
+
+  // AUTH
   let token = localStorage.getItem('token') || '';
-
-function setOut(msg) {
-  const out = document.getElementById('out');
-  out.textContent = msg;
-}
-
-async function register() {
-  const email = document.getElementById('email').value.trim();
-  const password = document.getElementById('password').value;
-  setOut('Registering…');
-  try {
-    await req('/api/auth/register', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    });
-    setOut('Registered! Now click “Login”.');
-  } catch (e) {
-    setOut('Register failed: ' + e.message);
+  function updateLogged(email) {
+    $('#logged').textContent = email || (token ? '(token present)' : 'n/a');
   }
-}
 
-async function login() {
-  const email = document.getElementById('email').value.trim();
-  const password = document.getElementById('password').value;
-  setOut('Logging in…');
-  try {
-    const data = await req('/api/auth/login', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    });
-    token = data.token;
-    localStorage.setItem('token', token);
-    document.getElementById('logged').textContent = email;
-    setOut('Logged in.');
-  } catch (e) {
-    setOut('Login failed: ' + e.message);
-  }
-}
-  /* -------- Products -------- */
-  async function loadProducts(){
-    try{
-      const list = await fetchJSON('/products');
-      const tb = document.querySelector('#ptable tbody'); tb.innerHTML='';
-      list.forEach(p=>{
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${p.id}</td><td>${p.name}</td><td>₹${p.price}</td><td>${p.stock}</td>
-          <td class="right"><button class="secondary" onclick="addToCart(${p.id})">Add to cart</button></td>`;
-        tb.appendChild(tr);
+  async function register() {
+    const email = $('#email').value.trim();
+    const password = $('#password').value;
+    try {
+      await req('/api/auth/register', {
+        method:'POST',
+        headers:{'content-type':'application/json'},
+        body: JSON.stringify({ email, password })
       });
-      msg(list);
-      const hasKeyboard = list.some(p=>p.name.toLowerCase()==='keyboard');
-      const hasMouse = list.some(p=>p.name.toLowerCase()==='mouse');
-      document.getElementById('seedBtn').disabled = hasKeyboard && hasMouse;
-    }catch(e){ msg('Load products failed: '+e.message); }
+      setOut('Registered. Now click “Login”.');
+    } catch (e) { setOut('Register failed: ' + e.message); }
+  }
+
+  async function login() {
+    const email = $('#email').value.trim();
+    const password = $('#password').value;
+    try {
+      const data = await req('/api/auth/login', {
+        method:'POST',
+        headers:{'content-type':'application/json'},
+        body: JSON.stringify({ email, password })
+      });
+      token = data.token;
+      localStorage.setItem('token', token);
+      updateLogged(email);
+      setOut('Logged in.');
+    } catch (e) { setOut('Login failed: ' + e.message); }
+  }
+
+  function logout() {
+    token = '';
+    localStorage.removeItem('token');
+    updateLogged('');
+    setOut('Logged out.');
+  }
+
+  // PRODUCTS
+  async function listProducts() {
+    try {
+      const list = await req('/api/products');
+      const tb = $('#ptbody'); tb.innerHTML = '';
+      for (const p of list) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${p.id}</td>
+          <td>${p.name}</td>
+          <td class="right">₹${p.price}</td>
+          <td class="right">${p.stock}</td>
+          <td class="right"><button class="ghost" onclick="cartAdd(${p.id})">Add to cart</button></td>`;
+        tb.appendChild(tr);
+      }
+      setOut(`Fetched ${list.length} products.`);
+    } catch (e) { setOut('List failed: ' + e.message); }
   }
 
   async function addProduct() {
-  const name = document.getElementById('pname').value.trim();
-  const price = +document.getElementById('pprice').value;
-  const stock = +document.getElementById('pstock').value;
-  try {
-    await req('/api/products', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name, price, stock })
-    });
-    setOut('Product added.'); await listProducts();
-  } catch (e) { setOut('Add failed: ' + e.message); }
-}
-
-
-  async function seed(){
-    try{
-      const existing = await fetchJSON('/products');
-      const names = existing.map(p=>p.name.toLowerCase());
-      if(!names.includes('keyboard')){
-        await fetchJSON('/products',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:'Keyboard',price:999,stock:10})});
-      }
-      if(!names.includes('mouse')){
-        await fetchJSON('/products',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:'Mouse',price:499,stock:20})});
-      }
-      msg('Seeded'); loadProducts();
-    }catch(e){ msg('Seed failed: '+e.message); }
+    const name = $('#pname').value.trim();
+    const price = Number($('#pprice').value);
+    const stock = Number($('#pstock').value);
+    if (!name || !Number.isFinite(price) || !Number.isFinite(stock)) {
+      setOut('Enter valid name, price, stock.'); return;
+    }
+    try {
+      await req('/api/products', {
+        method:'POST',
+        headers:{'content-type':'application/json'},
+        body: JSON.stringify({ name, price, stock })
+      });
+      setOut('Product added.'); $('#pname').value=''; $('#pprice').value=''; $('#pstock').value='';
+      listProducts();
+    } catch (e) { setOut('Add failed: ' + e.message); }
   }
 
-  /* -------- Cart -------- */
-  let cart=[];
-  function addToCart(id){ const f=cart.find(c=>c.product_id===id); if(f) f.qty++; else cart.push({product_id:id, qty:1}); renderCart(); }
-  function inc(i){ cart[i].qty++; renderCart(); }
-  function dec(i){ cart[i].qty=Math.max(1, cart[i].qty-1); renderCart(); }
-  function rm(i){ cart.splice(i,1); renderCart(); }
-  function clearCart(){ cart=[]; renderCart(); msg('Cart cleared'); }
-  function renderCart(){
-    const tb = document.querySelector('#ctable tbody'); tb.innerHTML='';
-    cart.forEach((it,i)=>{
-      const tr=document.createElement('tr');
-      tr.innerHTML = `<td>${it.product_id}</td>
-        <td class="flex">
-          <button class="secondary" onclick="dec(${i})">-</button>
-          <span>${it.qty}</span>
-          <button class="secondary" onclick="inc(${i})">+</button>
+  async function seed() {
+    try {
+      await req('/api/products', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ name:'Keyboard', price:999, stock:10 }) });
+      await req('/api/products', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ name:'Mouse',    price:499, stock:20 }) });
+      setOut('Seeded 2 items.'); listProducts();
+    } catch (e) { setOut('Seed failed: ' + e.message); }
+  }
+
+  // CART
+  const cart = new Map(); // id -> qty
+  function renderCart() {
+    const tb = $('#cartbody'); tb.innerHTML = '';
+    for (const [id, qty] of cart.entries()) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${id}</td>
+        <td class="right">
+          <button class="ghost" onclick="cartDec(${id})">−</button>
+          <span style="padding:0 10px">${qty}</span>
+          <button class="ghost" onclick="cartInc(${id})">+</button>
         </td>
-        <td class="right"><button class="secondary" onclick="rm(${i})">Remove</button></td>`;
+        <td class="right"><button class="ghost" onclick="cartDel(${id})">Remove</button></td>`;
       tb.appendChild(tr);
-    });
+    }
+  }
+  function cartAdd(id){ cart.set(id, (cart.get(id)||0)+1); renderCart(); }
+  function cartInc(id){ cart.set(id, (cart.get(id)||0)+1); renderCart(); }
+  function cartDec(id){ const n=(cart.get(id)||0)-1; if(n<=0) cart.delete(id); else cart.set(id,n); renderCart(); }
+  function cartDel(id){ cart.delete(id); renderCart(); }
+  function clearCart(){ cart.clear(); renderCart(); setOut('Cart cleared.'); }
+
+  async function placeOrder() {
+    if (!token) { setOut('Please login first.'); return; }
+    const items = [...cart.entries()].map(([product_id, qty]) => ({ product_id, qty }));
+    if (!items.length) { setOut('Cart is empty.'); return; }
+    try {
+      const data = await req('/api/orders', {
+        method:'POST',
+        headers:{ 'content-type':'application/json', 'Authorization':'Bearer '+token },
+        body: JSON.stringify({ items })
+      });
+      setOut(data);
+      clearCart();
+      listProducts(); // to show stock decrement
+    } catch (e) { setOut('Order failed: ' + e.message); }
   }
 
-  /* -------- Order -------- */
-  async function placeOrder(){
-    const t=getToken(); if(!t) return msg('Please login first.');
-    if(cart.length===0) return msg('Cart is empty.');
-    try{
-      const res = await fetchJSON('/orders',{method:'POST',headers:{'content-type':'application/json','Authorization':'Bearer '+t},body:JSON.stringify({items:cart})});
-      msg(res); clearCart(); loadProducts();
-    }catch(e){ msg('Order failed: '+e.message); }
-  }
-
-  // init
-  renderAuth(); loadProducts();
+  // INIT
+  (async function init(){
+    updateLogged('');
+    await listProducts().catch(()=>{});
+  })();
 </script>
 </body>
 </html>
-HTML
-
-docker compose restart ui
