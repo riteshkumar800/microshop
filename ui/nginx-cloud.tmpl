@@ -20,19 +20,27 @@ server {
   # IMPORTANT: do NOT override Host with $host when proxying to Render.
   # Let Nginx use the host from proxy_pass so routing works.
 
-  # --- Products ---
-  location /api/products/ { proxy_pass ${PRODUCT_ORIGIN}/products/; }
-  location /api/products  { proxy_pass ${PRODUCT_ORIGIN}/products;  }
+  # === Products ===
+location /api/products/ { proxy_pass ${PRODUCT_ORIGIN}/products/; }
+location = /api/products { proxy_pass ${PRODUCT_ORIGIN}/products; }
+# (optional) make /api/products/healthz hit the service root /healthz
+location = /api/products/healthz { proxy_pass ${PRODUCT_ORIGIN}/healthz; }
 
-  # --- Auth (user-service) ---
-  location /api/auth/     { proxy_pass ${USER_ORIGIN}/auth/; }
-  location /api/auth      { proxy_pass ${USER_ORIGIN}/auth;  }
+# === Auth (user-service at ROOT, not /auth) ===
+location /api/auth/ { proxy_pass ${USER_ORIGIN}/; }
+location = /api/auth { proxy_pass ${USER_ORIGIN}/; }
+# (optional) convenience health
+location = /api/auth/healthz { proxy_pass ${USER_ORIGIN}/healthz; }
 
-  # --- Orders ---
-  location /api/orders/   { proxy_pass ${ORDER_ORIGIN}/orders/; }
-  location /api/orders    { proxy_pass ${ORDER_ORIGIN}/orders;  }
+# === Orders ===
+location /api/orders/ { proxy_pass ${ORDER_ORIGIN}/orders/; }
+location = /api/orders { proxy_pass ${ORDER_ORIGIN}/orders; }
+# (optional)
+location = /api/orders/healthz { proxy_pass ${ORDER_ORIGIN}/healthz; }
 
-  # --- Payments ---
-  location /api/pay/      { proxy_pass ${PAYMENT_ORIGIN}/pay/; }
-  location /api/pay       { proxy_pass ${PAYMENT_ORIGIN}/pay;  }
-}
+# === Payments ===
+location /api/pay/ { proxy_pass ${PAYMENT_ORIGIN}/pay/; }
+location = /api/pay { proxy_pass ${PAYMENT_ORIGIN}/pay; }
+# (optional)
+location = /api/pay/healthz { proxy_pass ${PAYMENT_ORIGIN}/healthz; }
+};
