@@ -1,59 +1,49 @@
+# /etc/nginx/templates/default.conf.template
 server {
-  listen 8080;
+  # Render assigns $PORT; default to 80 for local runs
+  listen ${PORT:-80};
   server_name _;
 
-  # Needed when proxying to HTTPS origins like *.onrender.com
-  resolver 1.1.1.1 8.8.8.8 ipv6=off valid=300s;
-  resolver_timeout 5s;
-  proxy_ssl_server_name on;
+  # static UI
+  root /usr/share/nginx/html;
+  index index.html;
 
-  # Serve the SPA
+  # simple health
+  location = /healthz {
+    add_header Content-Type application/json;
+    return 200 '{"ok":true}';
+  }
+
+  # SPA fallback
   location / {
-    root /usr/share/nginx/html;
     try_files $uri /index.html;
   }
 
-  # Common proxy settings
+  # ---------- Common proxy settings ----------
   proxy_http_version 1.1;
   proxy_set_header Connection "";
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header X-Forwarded-For $remote_addr;
+  proxy_set_header X-Forwarded-Host $host;
 
-  # PRODUCTS
-  location /api/products/ {
-    proxy_set_header Host $proxy_host;
-    proxy_pass ${PRODUCT_ORIGIN}/products/;
-  }
-  location = /api/products {
-    proxy_set_header Host $proxy_host;
-    proxy_pass ${PRODUCT_ORIGIN}/products;
-  }
+  # Important for Render upstreams over HTTPS
+  proxy_ssl_server_name on;
+  # Use the host from proxy_pass as both SNI and HTTP Host
+  proxy_set_header Host $proxy_host;
 
-  # AUTH / USER
-  location /api/auth/ {
-    proxy_set_header Host $proxy_host;
-    proxy_pass ${USER_ORIGIN}/auth/;
-  }
-  location = /api/auth {
-    proxy_set_header Host $proxy_host;
-    proxy_pass ${USER_ORIGIN}/auth;
-  }
+  # ---------- Products ----------
+  location /api/products/ { proxy_pass ${PRODUCT_ORIGIN}/products/; }
+  location = /api/products  { proxy_pass ${PRODUCT_ORIGIN}/products;  }
 
-  # ORDERS
-  location /api/orders/ {
-    proxy_set_header Host $proxy_host;
-    proxy_pass ${ORDER_ORIGIN}/orders/;
-  }
-  location = /api/orders {
-    proxy_set_header Host $proxy_host;
-    proxy_pass ${ORDER_ORIGIN}/orders;
-  }
+  # ---------- Auth / Users ----------
+  location /api/auth/ { proxy_pass ${USER_ORIGIN}/auth/; }
+  location = /api/auth  { proxy_pass ${USER_ORIGIN}/auth;  }
 
-  # PAYMENT
-  location /api/pay/ {
-    proxy_set_header Host $proxy_host;
-    proxy_pass ${PAYMENT_ORIGIN}/pay/;
-  }
-  location = /api/pay {
-    proxy_set_header Host $proxy_host;
-    proxy_pass ${PAYMENT_ORIGIN}/pay;
-  }
+  # ---------- Orders ----------
+  location /api/orders/ { proxy_pass ${ORDER_ORIGIN}/orders/; }
+  location = /api/orders  { proxy_pass ${ORDER_ORIGIN}/orders;  }
+
+  # ---------- Payment ----------
+  location /api/pay/ { proxy_pass ${PAYMENT_ORIGIN}/pay/; }
+  location = /api/pay  { proxy_pass ${PAYMENT_ORIGIN}/pay;  }
 }
