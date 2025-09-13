@@ -1,9 +1,10 @@
 FROM nginx:alpine
 
-# UI files
+# Static UI
 COPY public/ /usr/share/nginx/html/
 
-# Nginx template (envsubst will fill in PRODUCT_BASE/USER_BASE/ORDER_BASE)
-COPY nginx.conf.template /etc/nginx/templates/default.conf.template
+# Render’s nginx image auto-renders any file in /etc/nginx/templates/*.template
+COPY default.conf.template /etc/nginx/templates/default.conf.template
 
-EXPOSE 80
+# Launch nginx in the foreground
+CMD ["nginx", "-g", "daemon off;"]
