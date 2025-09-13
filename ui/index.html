@@ -1,1 +1,403 @@
 <!-- your working index.html from earlier -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Microshop</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { margin:0; font:16px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:#0f172a; color:#e5e7eb; }
+    .wrap { max-width: 980px; margin: 32px auto; padding: 0 16px; }
+    h1 { font-size: 32px; margin: 0 0 8px; }
+    .muted { color:#94a3b8; font-size:14px; }
+    .box { background:#111827; border:1px solid #1f2937; border-radius:12px; padding:16px; margin:16px 0; }
+    .row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+    input, button { height:36px; border-radius:8px; border:1px solid #374151; background:#0b1220; color:#e5e7eb; padding:0 10px; }
+    input::placeholder { color:#6b7280; }
+    button { background:#0ea5e9; border-color:#0284c7; color:white; cursor:pointer; }
+    button.ghost { background:transparent; border-color:#374151; color:#e5e7eb; }
+    button.warn { background:#f97316; border-color:#ea580c; }
+    button:disabled { opacity:.5; cursor:not-allowed; }
+    table { width:100%; border-collapse: collapse; }
+    th, td { border-top:1px solid #1f2937; padding:10px; }
+    th { text-align:left; color:#94a3b8; font-weight:600; }
+    .right { text-align:right; }
+    .pill { display:inline-block; padding:3px 8px; border-radius:999px; background:#0b1220; border:1px solid #374151; font-size:12px; color:#93c5fd; }
+    .toggle { float:right; font-size:14px; }
+
+    /* Output panel (pretty JSON) */
+    .output-code{
+      background:#0d1117;
+      color:#c9d1d9;
+      border:1px solid #30363d;
+      border-radius:8px;
+      padding:12px;
+      max-height:220px;
+      overflow:auto;
+      white-space:pre;
+      font:13px/1.5 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Microshop <span class="toggle"><button class="ghost" id="themeBtn">🌙 Dark</button></span></h1>
+  <div class="muted">Gateway at <code>/api/*</code> → Traefik → services</div>
+
+  <!-- Account -->
+  <div class="box">
+    <h3>Account</h3>
+    <div class="row">
+      <input id="email" placeholder="email@example.com" style="width:320px" />
+      <input id="password" placeholder="password" type="password" style="width:240px" />
+      <button onclick="register()">Register</button>
+      <button onclick="login()">Login</button>
+      <button class="ghost" onclick="logout()">Logout</button>
+    </div>
+    <div style="margin-top:8px;">Logged in: <span id="logged" class="pill">n/a</span></div>
+  </div>
+
+  <!-- Products -->
+  <div class="box">
+    <h3 style="display:flex;justify-content:space-between;align-items:center;">
+      <span>Products</span>
+      <span class="muted" style="font-size:13px">
+        Scope: <button id="scopeBtn" class="ghost" onclick="toggleScope()">Mine</button>
+      </span>
+    </h3>
+
+    <div class="row">
+      <input id="pname" placeholder="Name (e.g., Keyboard)" style="flex:2;" />
+      <input id="pprice" placeholder="Price (e.g., 999)" style="flex:1;" />
+      <input id="pstock" placeholder="Stock (e.g., 10)" style="flex:1;" />
+      <button onclick="addProduct()">Add product</button>
+      <button class="ghost" onclick="seed()">Seed 2 sample items</button>
+      <button class="ghost" onclick="listProducts()">Refresh</button>
+    </div>
+    <table style="margin-top:10px;">
+      <thead><tr><th style="width:60px">ID</th><th>Name</th><th class="right">Price</th><th class="right">Stock</th><th class="right">Action</th></tr></thead>
+      <tbody id="ptbody"></tbody>
+    </table>
+    <div id="emptyState" class="muted" style="display:none; padding-top:8px;">No products yet — add one above.</div>
+  </div>
+
+  <!-- Cart -->
+  <div class="box">
+    <h3>Cart</h3>
+    <table>
+      <thead><tr><th>Product ID</th><th class="right">Qty</th><th class="right">Remove</th></tr></thead>
+      <tbody id="cartbody"></tbody>
+    </table>
+    <div class="row" style="justify-content:flex-end; margin-top:10px;">
+      <button class="ghost" onclick="clearCart()">Clear cart</button>
+      <button class="warn" onclick="placeOrder()">Place order</button>
+    </div>
+  </div>
+
+  <!-- Output -->
+  <div class="box">
+    <h3>Output</h3>
+    <pre id="output" class="output-code" aria-live="polite"></pre>
+  </div>
+</div>
+
+<script>
+  /* ---------- Output helpers ---------- */
+  const outEl = document.getElementById('output');
+  function showOutput(label, data){
+    const time = new Date().toLocaleTimeString();
+    const payload = (typeof data === 'string') ? data : JSON.stringify(data, null, 2);
+    outEl.textContent = `${label} @ ${time}\n${payload}`;
+  }
+  function showError(label, err){
+    const printable = (typeof err === 'string') ? { error: err }
+      : err?.detail ? err : { error: String(err) };
+    showOutput(label + ' (error)', printable);
+  }
+
+  /* ---------- Theme ---------- */
+  const themeBtn = document.getElementById('themeBtn');
+  function setTheme(mode) {
+    document.documentElement.style.colorScheme = mode === 'dark' ? 'dark' : 'light';
+    themeBtn.textContent = mode === 'dark' ? '🌙 Dark' : '☀️ Light';
+    localStorage.setItem('theme', mode);
+  }
+  themeBtn.onclick = () => setTheme(localStorage.getItem('theme') === 'dark' ? 'light' : 'dark');
+  setTheme(localStorage.getItem('theme') || 'dark');
+
+  /* ---------- API helper ---------- */
+  async function api(path, opts = {}) {
+    const res = await fetch(path, {
+      ...opts,
+      headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) }
+    });
+    const ct = res.headers.get('content-type') || '';
+    const body = ct.includes('application/json') ? await res.json() : await res.text();
+    if (!res.ok) throw body;
+    return body;
+  }
+
+  /* ---------- Utilities & state ---------- */
+  const $ = sel => document.querySelector(sel);
+
+  // Full server list (unfiltered)
+  let lastAllProducts = [];
+
+  // Current table view (after scope filter) for index<->id mapping
+  let lastScoped = [];                    // array of products in the table right now
+  let displayIndexMap = new Map();        // realId -> 1-based display index
+
+  // View scope: "mine" or "all"
+  let viewScope = localStorage.getItem('viewScope') || 'mine';
+  let mineIds = []; // kept only for current login session
+  function updateScopeButton(){
+    $('#scopeBtn').textContent = viewScope === 'mine' ? 'Mine' : 'All';
+  }
+  function setScope(s) {
+    viewScope = s;
+    localStorage.setItem('viewScope', s);
+    updateScopeButton();
+    renderProducts(lastAllProducts);
+  }
+  function toggleScope(){ setScope(viewScope === 'mine' ? 'all' : 'mine'); }
+
+  function getStock(id){
+    const p = lastAllProducts.find(x => x.id === id);
+    return p ? Number(p.stock || 0) : 0;
+  }
+
+  // Helpers for display index mapping
+  function rebuildIndexMap(scoped){
+    lastScoped = scoped.slice();
+    displayIndexMap = new Map();
+    lastScoped.forEach((p, i) => displayIndexMap.set(p.id, i + 1)); // 1-based
+  }
+  function idFromIndex(idx){ const item = lastScoped[idx - 1]; return item && item.id; }
+  function displayIndexFor(id){ return displayIndexMap.get(id) ?? '?'; }
+
+  /* ---------- Auth ---------- */
+  let token = localStorage.getItem('token') || '';
+  function updateLogged(email) {
+    $('#logged').textContent = email || (token ? '(token present)' : 'n/a');
+  }
+
+  async function register() {
+    const email = $('#email').value.trim();
+    const password = $('#password').value;
+    const payload = { email, password };
+    try {
+      const resp = await api('/api/auth/register', { method:'POST', body: JSON.stringify(payload) });
+      showOutput('POST /api/auth/register', { request: payload, response: resp });
+    } catch (e) { showError('POST /api/auth/register', e); }
+  }
+
+  async function login() {
+    const email = $('#email').value.trim();
+    const password = $('#password').value;
+    const payload = { email, password };
+    try {
+      const resp = await api('/api/auth/login', { method:'POST', body: JSON.stringify(payload) });
+      token = resp.token;
+      localStorage.setItem('token', token);
+      updateLogged(email);
+
+      // Start a fresh "mine" session view: empty until you add
+      mineIds = [];
+      setScope('mine');
+      await listProducts();             // table will be empty, IDs start at 1 for first add
+      showOutput('POST /api/auth/login', { request: payload, response: resp, scope:'mine (fresh)' });
+    } catch (e) { showError('POST /api/auth/login', e); }
+  }
+
+  function logout() {
+    token = '';
+    localStorage.removeItem('token');
+    updateLogged('');
+    showOutput('LOGOUT', { ok: true });
+  }
+
+  /* ---------- Products ---------- */
+  function renderProducts(products){
+    lastAllProducts = products.slice();
+    const tb = $('#ptbody'); tb.innerHTML = '';
+
+    // Apply scope filter
+    const scoped = (viewScope === 'mine')
+      ? products.filter(p => mineIds.includes(p.id))
+      : products;
+
+    // Build index map so IDs start from 1 in this view
+    rebuildIndexMap(scoped);
+
+    // Empty state message
+    $('#emptyState').style.display = scoped.length ? 'none' : 'block';
+
+    // Render rows; show 1-based index, but call cart with that index
+    scoped.forEach((p, i) => {
+      const disabled = Number(p.stock) <= 0;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${i + 1}</td>
+        <td>${p.name}</td>
+        <td class="right">₹${p.price}</td>
+        <td class="right">${p.stock}</td>
+        <td class="right">
+          <button class="ghost" ${disabled?'disabled':''} onclick="cartAddByIndex(${i + 1})">
+            ${disabled ? 'Out of stock' : 'Add to cart'}
+          </button>
+        </td>`;
+      tb.appendChild(tr);
+    });
+  }
+
+  async function listProducts() {
+    try {
+      const list = await api('/api/products');
+      renderProducts(list);
+      showOutput('GET /api/products', { scope:viewScope, shown: (viewScope==='mine'?mineIds: 'all'), products:list });
+    } catch (e) { showError('GET /api/products', e); }
+  }
+
+  async function addProduct() {
+    const name = $('#pname').value.trim();
+    const price = Number($('#pprice').value);
+    const stock = Number($('#pstock').value);
+    if (!name || !Number.isFinite(price) || !Number.isFinite(stock)) {
+      showOutput('POST /api/products', { error: 'Enter valid name, price, stock.' }); return;
+    }
+
+    let beforeIds = lastAllProducts.map(p => p.id);
+    const payload = { name, price, stock };
+
+    try {
+      const resp = await api('/api/products', { method:'POST', body: JSON.stringify(payload) });
+
+      // Refresh & detect the new item(s)
+      const after = await api('/api/products');
+      const newIds = after.map(p => p.id).filter(id => !beforeIds.includes(id));
+      if (resp && typeof resp === 'object' && 'id' in resp) newIds.push(resp.id);
+      for (const id of newIds) if (!mineIds.includes(id)) mineIds.push(id);
+
+      $('#pname').value=''; $('#pprice').value=''; $('#pstock').value='';
+      renderProducts(after);
+      showOutput('POST /api/products', { request: payload, response: resp, mineIds });
+
+    } catch (e) { showError('POST /api/products', e); }
+  }
+
+  async function seed() {
+    try {
+      const before = lastAllProducts.map(p => p.id);
+      const a = await api('/api/products', { method:'POST', body: JSON.stringify({ name:'Keyboard', price:999, stock:10 }) });
+      const b = await api('/api/products', { method:'POST', body: JSON.stringify({ name:'Mouse',    price:499, stock:20 }) });
+      const list = await api('/api/products');
+
+      const diffs = list.map(p=>p.id).filter(id => !before.includes(id));
+      for (const id of diffs) if (!mineIds.includes(id)) mineIds.push(id);
+
+      renderProducts(list);
+      showOutput('Seed 2 sample items', { responses: [a, b], mineIds, products: list });
+    } catch (e) { showError('Seed 2 sample items', e); }
+  }
+
+  /* ---------- Cart (stock-aware, shows 1-based IDs) ---------- */
+  const cart = new Map(); // realId -> qty
+
+  function renderCart() {
+    const tb = $('#cartbody'); tb.innerHTML = '';
+    for (const [realId, qty] of cart.entries()) {
+      const stock = getStock(realId);
+      const canInc = qty < stock;
+      const displayId = displayIndexFor(realId); // 1-based number in current table
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${displayId}</td>
+        <td class="right">
+          <button class="ghost" onclick="cartDec(${realId})">−</button>
+          <span style="padding:0 10px">${qty}</span>
+          <button class="ghost" ${canInc? '' : 'disabled'} onclick="cartInc(${realId})">+</button>
+        </td>
+        <td class="right"><button class="ghost" onclick="cartDel(${realId})">Remove</button></td>`;
+      tb.appendChild(tr);
+    }
+  }
+
+  // Add to cart using visible 1-based index
+  function cartAddByIndex(index){
+    const realId = idFromIndex(index);
+    if (!realId) { showOutput('CART', { error:`Unknown product #${index}` }); return; }
+    cartAdd(realId);
+  }
+
+  function cartAdd(realId){
+    const have = cart.get(realId) || 0;
+    const max = getStock(realId);
+    if (max <= 0) { showOutput('CART', { error:`Product #${displayIndexFor(realId)} out of stock` }); return; }
+    if (have >= max) { showOutput('CART', { error:`Cannot exceed stock`, product:`#${displayIndexFor(realId)}`, stock:max }); return; }
+    cart.set(realId, have + 1); renderCart();
+  }
+  function cartInc(realId){
+    const have = cart.get(realId) || 0;
+    const max = getStock(realId);
+    if (have >= max) { showOutput('CART', { error:`Cannot exceed stock`, product:`#${displayIndexFor(realId)}`, stock:max }); return; }
+    cart.set(realId, have + 1); renderCart();
+  }
+  function cartDec(realId){
+    const n = (cart.get(realId) || 0) - 1;
+    if (n <= 0) cart.delete(realId); else cart.set(realId, n);
+    renderCart();
+  }
+  function cartDel(realId){ cart.delete(realId); renderCart(); }
+  function clearCart(){ cart.clear(); renderCart(); showOutput('CART', { cleared: true }); }
+
+  /* ---------- Place order ---------- */
+  async function placeOrder() {
+    if (!token) { showOutput('POST /api/orders', { error:'Please login first.' }); return; }
+    const items = [...cart.entries()].map(([product_id, qty]) => ({ product_id, qty }));
+    if (!items.length) { showOutput('POST /api/orders', { error:'Cart is empty.' }); return; }
+
+    // Pre-validate stock against latest list
+    try {
+      const latest = await api('/api/products');
+      lastAllProducts = latest;
+      const over = items.filter(it => it.qty > getStock(it.product_id));
+      if (over.length) {
+        showOutput('POST /api/orders', { error:'Not enough stock for some items', over });
+        renderProducts(latest);
+        renderCart();
+        return;
+      }
+    } catch(_) {}
+
+    try {
+      const resp = await api('/api/orders', {
+        method:'POST',
+        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items })
+      });
+
+      const products = await api('/api/products'); // refresh to see new stock
+      renderProducts(products);
+
+      const purchased = items.map(it => {
+        const p = products.find(x => x.id === it.product_id) || { name:'(unknown)', stock:null };
+        return { id_display: displayIndexFor(it.product_id), name: p.name, bought: it.qty, left: p.stock };
+      });
+
+      showOutput('POST /api/orders', { order_response: resp, purchased });
+      clearCart();
+    } catch (e) {
+      showError('POST /api/orders', e);
+    }
+  }
+
+  /* ---------- Init ---------- */
+  (async function init(){
+    updateLogged('');
+    updateScopeButton();
+    await listProducts().catch(()=>{});
+  })();
+</script>
+</body>
+</html>
