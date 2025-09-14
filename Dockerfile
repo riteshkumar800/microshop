@@ -45,3 +45,7 @@ ENV PRODUCT_HOST=127.0.0.1 \
 
 # Start nginx (via start.sh) and the apps (via supervisord)
 CMD ["/bin/sh","-lc","/start.sh && exec /usr/bin/supervisord -c /etc/supervisord.conf"]
+# System deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    nginx supervisor gettext-base ca-certificates curl \
+ && rm -rf /var/lib/apt/lists/*
