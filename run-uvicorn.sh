@@ -1,20 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
-SERVICE_DIR="${1:-.}"
+APP_DIR="${1:?app dir missing}"
 PORT="${2:-8000}"
 
-cd "$SERVICE_DIR"
+cd "$APP_DIR"
 
-if [ -f "src/main.py" ]; then
-  exec uvicorn main:app --host 0.0.0.0 --port "$PORT" --app-dir src
-elif [ -f "src/app.py" ]; then
-  exec uvicorn app:app  --host 0.0.0.0 --port "$PORT" --app-dir src
-elif [ -f "main.py" ]; then
-  exec uvicorn main:app --host 0.0.0.0 --port "$PORT"
-elif [ -f "app.py" ]; then
-  exec uvicorn app:app  --host 0.0.0.0 --port "$PORT"
+# Try common layouts
+if   [ -f "src/app/main.py" ]; then MODULE="app.main:app"; APPDIR="src"
+elif [ -f "src/main.py"     ]; then MODULE="main:app";     APPDIR="src"
+elif [ -f "app/main.py"     ]; then MODULE="app.main:app"; APPDIR="."
+elif [ -f "main.py"         ]; then MODULE="main:app";     APPDIR="."
+elif [ -f "app.py"          ]; then MODULE="app:app";      APPDIR="."
 else
-  echo "❌ No FastAPI entrypoint found in $SERVICE_DIR (looked for src/main.py, src/app.py, main.py, app.py)" >&2
-  find . -maxdepth 2 -name "*.py" -print
+  echo "Could not find FastAPI entrypoint in $APP_DIR" >&2
+  find . -maxdepth 3 -type f \( -name 'main.py' -o -name 'app.py' \) -print >&2 || true
   exit 1
 fi
+
+exec uvicorn "$MODULE" --host 0.0.0.0 --port "$PORT" --app-dir "$APPDIR" \
+  --proxy-headers --forwarded-allow-ips='*' --log-level info
